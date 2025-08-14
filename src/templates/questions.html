@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>錯題資料庫</title>
+</head>
+<body>
+    <h2>所有錯題</h2>
+    <form method="post" action="/update_selected">
+    <table border="1">
+        <tr>
+            <th>題目圖片</th>
+            <th>正確答案</th>
+            <th>標註</th>
+            <th>已選擇</th>
+            <th>刪除</th>
+        </tr>
+        {% for q in questions %}
+                <tr>
+                    <td>
+                        {% if q[0] %}
+                        <img src="{{ url_for('static', filename='uploads/' + q[0]) }}" width="200">
+                        {% else %}無圖片{% endif %}
+                    </td>
+                    <td>
+                        <input type="text" name="answer_{{ loop.index0 }}" value="{{ q[1] }}">
+                    </td>
+                    <td>{{ q[2] }}</td>
+                    <td>
+                        <input type="checkbox" name="selected_{{ loop.index0 }}" {% if q|length > 3 and q[3] == '1' %}checked{% endif %}>
+                    </td>
+                    <td>
+                        <form method="post" action="/delete_question" style="display:inline">
+                            <input type="hidden" name="row_index" value="{{ loop.index0 }}">
+                            <button type="submit" onclick="return confirm('確定要刪除這一列嗎？')">刪除</button>
+                        </form>
+                    </td>
+                </tr>
+        {% endfor %}
+    </table>
+    <button type="submit">儲存選擇狀態</button>
+    </form>
+    <br>
+    <a href="/">回首頁</a>
+</body>
+</html>

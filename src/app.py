@@ -141,4 +141,29 @@ def delete_question():
 
 if __name__ == '__main__':
     create_excel()
+
+# 新增儲存選擇狀態路由
+@app.route('/update_selected', methods=['POST'])
+def update_selected():
+    wb = openpyxl.load_workbook(EXCEL_FILE)
+    ws = wb.active
+    max_row = ws.max_row
+    # 取得所有選擇狀態
+    for idx in range(max_row - 1):
+        selected = request.form.get(f'selected_{idx}')
+        answer = request.form.get(f'answer_{idx}')
+        # Excel 第一列是標題，資料列從第2行開始
+        row = ws[idx + 2]
+        # 假設選擇狀態在第4欄，答案在第2欄
+        if len(row) > 3:
+            row[3].value = '1' if selected else '0'
+        if len(row) > 1 and answer is not None:
+            row[1].value = answer
+    wb.save(EXCEL_FILE)
+    flash('已儲存選擇狀態與答案')
+    return redirect(url_for('questions'))
+
+
+if __name__ == '__main__':
+    create_excel()
     app.run(host='0.0.0.0', port=5000, debug=True)

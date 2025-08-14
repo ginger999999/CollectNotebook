@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>錯題本首頁</title>
+</head>
+<body>
+    <h1>錯題本</h1>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <label>上傳試卷圖片：</label>
+        <input type="file" name="file" required>
+        <button type="submit">擷取錯題</button>
+    </form>
+    <br>
+    <a href="/random">隨機出題</a> |
+    <a href="/questions">錯題資料庫</a>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul>
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+</body>
+</html>

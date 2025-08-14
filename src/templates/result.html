@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>擷取結果</title>
+</head>
+<body>
+    <h2>擷取到的文字</h2>
+    <form action="/add" method="post">
+        <textarea name="question" rows="8" cols="60">{{ text }}</textarea><br>
+        <label>解析：</label><input type="text" name="solution"><br>
+        <label>標註：</label><input type="text" name="tag"><br>
+        <button type="submit">加入Excel錯題本</button>
+    </form>
+    <br>
+    <a href="/">回首頁</a>
+</body>
+</html>

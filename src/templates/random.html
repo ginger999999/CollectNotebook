@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>隨機出題</title>
+</head>
+<body>
+    <h2>隨機錯題</h2>
+    <form method="post">
+        <label>出題數量：</label>
+        <input type="number" name="num" min="1" value="{{ num }}">
+        <button type="submit">出題</button>
+    </form>
+    <br>
+    {% if questions %}
+        <div id="printArea">
+        <table border="1">
+            <tr>
+                <th>題目</th>
+                <th>解析</th>
+                <th>標註</th>
+            </tr>
+            {% for q in questions %}
+            <tr>
+                <td>{{ q[0] }}</td>
+                <td>{{ q[1] }}</td>
+                <td>{{ q[2] }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        </div>
+        <button onclick="window.print()">列印</button>
+    {% else %}
+        <p>目前沒有錯題</p>
+    {% endif %}
+    <br>
+    <a href="/">回首頁</a>
+</body>
+</html>
