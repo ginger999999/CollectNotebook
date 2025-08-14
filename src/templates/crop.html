@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>裁切錯題區塊</title>
+    <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css" rel="stylesheet"/>
+    <style>
+      img { max-width: 100%; }
+      #preview { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h2>裁切錯題區塊</h2>
+  <img id="image" src="{{ url_for('static', filename='uploads/' + filename) }}">
+  <br>
+  <label>正確答案：</label>
+  <input type="text" id="answerInput">
+  <button id="cropBtn">裁切加入清單</button>
+  <button id="saveAllBtn">全部儲存</button>
+  <div id="preview"></div>
+    <br>
+    <a href="/">回首頁</a>
+    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
+<script>
+  window.onload = function() {
+    const image = document.getElementById('image');
+    let cropper = null;
+    image.onload = function() {
+      cropper = new Cropper(image, {
+        viewMode: 1,
+        autoCropArea: 0.5,
+        movable: true,
+        zoomable: true,
+        scalable: true,
+        cropBoxResizable: true
+      });
+    };
+    if (image.complete) {
+      image.onload();
+    }
+    let cropList = [];
+    document.getElementById('cropBtn').onclick = function() {
+      if (!cropper) {
+        alert('圖片尚未載入');
+        return;
+      }
+      const canvas = cropper.getCroppedCanvas();
+      const answerInput = document.getElementById('answerInput');
+      const answer = answerInput.value.trim();
+      if (!answer) {
+        alert('請填入正確答案');
+        return;
+      }
+      canvas.toBlob(function(blob) {
+        cropList.push({blob, answer});
+        answerInput.value = '';
+        // 預覽所有裁切
+        const preview = document.getElementById('preview');
+        preview.innerHTML = '';
+        cropList.forEach((item, idx) => {
+          const url = URL.createObjectURL(item.blob);
+          const img = document.createElement('img');
+          img.src = url;
+          img.width = 200;
+          img.title = '裁切區塊 ' + (idx+1);
+          preview.appendChild(img);
+          const ans = document.createElement('div');
+          ans.innerText = '正確答案：' + item.answer;
+          preview.appendChild(ans);
+        });
+      });
+    };
+    document.getElementById('saveAllBtn').onclick = function() {
+      if (cropList.length === 0) {
+        alert('請先裁切至少一個區塊');
+        return;
+      }
+      const formData = new FormData();
+      cropList.forEach((item, idx) => {
+        formData.append('cropped_images', item.blob, 'crop_' + idx + '.png');
+        formData.append('answers', item.answer);
+      });
+      formData.append('origin', '{{ filename }}');
+      fetch('/save_crops', {
+        method: 'POST',
+        body: formData
+      }).then(response => response.text()).then(data => {
+        alert(data);
+        cropList = [];
+        document.getElementById('preview').innerHTML = '';
+      });
+    };
+  };
+</script>
+</html>
