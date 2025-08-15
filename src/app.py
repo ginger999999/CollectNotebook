@@ -35,22 +35,27 @@ def questions():
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    if 'file' not in request.files:
+    files = request.files.getlist('file')
+    if not files or files[0].filename == '':
         flash('未選擇檔案')
         return redirect(url_for('index'))
-    file = request.files['file']
-    if file.filename == '':
-        flash('未選擇檔案')
-        return redirect(url_for('index'))
-    # 檢查副檔名
     allowed_ext = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.mpo']
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in allowed_ext:
-        flash('只支援圖片格式：jpg, jpeg, png, bmp, tiff, mpo')
+    saved_files = []
+    for file in files:
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in allowed_ext:
+            continue
+        filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(filepath)
+        saved_files.append(file.filename)
+    if not saved_files:
+        flash('沒有可用的圖片格式')
         return redirect(url_for('index'))
-    filepath = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(filepath)
-    return redirect(url_for('crop', filename=file.filename))
+    if len(saved_files) == 1:
+        return redirect(url_for('crop', filename=saved_files[0]))
+    else:
+        # 多檔案導向 crop_multi
+        return render_template('crop_multi.html', files=saved_files)
 @app.route('/crop/<filename>')
 def crop(filename):
     return render_template('crop.html', filename=filename)
@@ -163,6 +168,87 @@ def update_selected():
     flash('已儲存選擇狀態與答案')
     return redirect(url_for('questions'))
 
+
+
+# PDF 產生路由（放在所有 @app.route 之後）
+from flask import send_file
+import io
+from PIL import Image
+
+@app.route('/generate_pdf', methods=['POST'])
+def generate_pdf():
+    data = request.get_json()
+    images = data.get('images', [])
+    if not images:
+        return 'No images selected', 400
+    img_list = []
+    for img_url in images:
+        filename = img_url.split('/')[-1]
+        img_path = os.path.join(UPLOAD_FOLDER, filename)
+        if os.path.exists(img_path):
+            img = Image.open(img_path).convert('RGB')
+            img_list.append(img)
+    if not img_list:
+        return 'No valid images found', 400
+    # 設定 A4 尺寸 (2480x3508 px, 300 dpi)，上下邊距各 36px
+    a4_width, a4_height = 2480, 3508
+    margin = 36
+    content_width = a4_width - 2 * margin
+    content_height = a4_height - 2 * margin
+    # 依序縮放每張圖至 A4 寬度
+    resized_imgs = []
+    for img in img_list:
+        w, h = img.size
+        new_h = int(h * content_width / w)
+        resized = img.resize((content_width, new_h), Image.LANCZOS)
+        resized_imgs.append(resized)
+    # 分頁，每頁內容高度 content_height
+    pages = []
+    current_imgs = []
+    current_height = 0
+    for img in resized_imgs:
+        if current_height + img.height > content_height and current_imgs:
+            # 新頁
+            pages.append(current_imgs)
+            current_imgs = []
+            current_height = 0
+        current_imgs.append(img)
+        current_height += img.height
+    if current_imgs:
+        pages.append(current_imgs)
+    # 建立每頁圖
+    page_imgs = []
+    answers = data.get('answers', [])
+    answer_height = 80 if pages and answers else 0
+    for page_idx, imgs in enumerate(pages):
+        # 最後一頁底部預留答案空間
+        is_last = (page_idx == len(pages)-1)
+        extra_space = answer_height if is_last else 0
+        total_h = sum(img.height for img in imgs)
+        merged_img = Image.new('RGB', (a4_width, a4_height), (255,255,255))
+        y_offset = margin + (content_height - total_h - extra_space)//2 if total_h + extra_space < content_height else margin
+        for img in imgs:
+            x_offset = margin + (content_width - img.width)//2
+            merged_img.paste(img, (x_offset, y_offset))
+            y_offset += img.height
+        # 最後一頁加上答案欄
+        if is_last and answers:
+            from PIL import ImageDraw, ImageFont
+            draw = ImageDraw.Draw(merged_img)
+            font_path = os.path.join(os.path.dirname(__file__), 'fonts', 'arial.ttf')
+            try:
+                font = ImageFont.truetype(font_path, 80)
+            except Exception as e:
+                font = ImageFont.load_default()
+            ans_y = a4_height - margin - answer_height + 10
+            ans_text = "Ans: " + ", ".join([f"{idx+1}. {ans}" for idx, ans in enumerate(answers)])
+            draw.text((margin, ans_y), ans_text, fill=(0,0,0), font=font)
+        page_imgs.append(merged_img)
+    # 儲存為多頁 PDF
+    pdf_bytes = io.BytesIO()
+    page_imgs[0].save(pdf_bytes, format='PDF', save_all=True, append_images=page_imgs[1:])
+    pdf_bytes.seek(0)
+    return send_file(pdf_bytes, mimetype='application/pdf', as_attachment=False, download_name='marked_images.pdf')
 
 if __name__ == '__main__':
     create_excel()

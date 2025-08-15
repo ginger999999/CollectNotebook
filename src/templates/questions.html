@@ -11,7 +11,7 @@
         <tr>
             <th>題目圖片</th>
             <th>正確答案</th>
-            <th>標註</th>
+            <th>列印</th>
             <th>已選擇</th>
             <th>刪除</th>
         </tr>
@@ -23,9 +23,11 @@
                         {% else %}無圖片{% endif %}
                     </td>
                     <td>
-                        <input type="text" name="answer_{{ loop.index0 }}" value="{{ q[1] }}">
+                            <input type="text" name="answer_{{ loop.index0 }}" value="{{ q[1] }}">
                     </td>
-                    <td>{{ q[2] }}</td>
+                    <td>
+                        <input type="checkbox" name="mark_{{ loop.index0 }}" {% if q[2] == '1' %}checked{% endif %}>
+                    </td>
                     <td>
                         <input type="checkbox" name="selected_{{ loop.index0 }}" {% if q|length > 3 and q[3] == '1' %}checked{% endif %}>
                     </td>
@@ -39,6 +41,40 @@
         {% endfor %}
     </table>
     <button type="submit">儲存選擇狀態</button>
+    <button type="button" onclick="printMarkedImages()">列印</button>
+    <script>
+    function printMarkedImages() {
+        // 取得所有勾選的標註欄位
+        var rows = document.querySelectorAll('table tr');
+        var markedImages = [];
+        var markedAnswers = [];
+        for (var i = 1; i < rows.length; i++) { // 跳過標題列
+            var markCheckbox = rows[i].querySelector('input[name^="mark_"]');
+            if (markCheckbox && markCheckbox.checked) {
+                var img = rows[i].querySelector('img');
+                var answerInput = rows[i].querySelector('input[name^="answer_"]');
+                if (img) markedImages.push(img.getAttribute('src'));
+                if (answerInput) markedAnswers.push(answerInput.value);
+            }
+        }
+        if (markedImages.length === 0) {
+            alert('請先勾選要列印的標註圖片');
+            return;
+        }
+        // 傳送到後端產生 PDF
+        fetch('/generate_pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ images: markedImages, answers: markedAnswers })
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            var url = window.URL.createObjectURL(blob);
+            var win = window.open(url, '_blank');
+            win.focus();
+        });
+    }
+    </script>
     </form>
     <br>
     <a href="/">回首頁</a>
